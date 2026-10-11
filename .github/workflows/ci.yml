@@ -1,0 +1,27 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # OCR tests need Tesseract with Bulgarian; the model test is skipped
+      # when SigLIP 2 is not downloaded, as on a fresh runner.
+      - name: System packages
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y -q tesseract-ocr tesseract-ocr-bul fonts-dejavu-core
+
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+
+      - run: uv sync --locked
+      - run: uv run python -m unittest discover -s tests -v

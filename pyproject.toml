@@ -1,0 +1,33 @@
+[project]
+name = "organize-images"
+version = "0.2.0"
+description = "Проста локална галерия със снимки, тагове, търсене и автоматично тагване"
+authors = [{ name = "Iva E. Popova" }]
+requires-python = ">=3.12"
+dependencies = [
+    "pillow>=10",
+    "numpy>=1.26",
+    "torch>=2.4",
+    "transformers>=4.49",
+    "sentencepiece>=0.2",
+    "protobuf>=4",
+]
+
+[project.scripts]
+gallery = "gallery.__main__:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["gallery"]
+
+# CPU-only PyTorch: this machine has no GPU, and the CUDA build is several GB.
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
+
+[tool.uv.sources]
+torch = { index = "pytorch-cpu" }

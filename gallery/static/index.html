@@ -1,0 +1,1117 @@
+<!doctype html>
+<html lang="bg">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Галерия</title>
+<style>
+:root {
+  --bg: #f6f5f2; --panel: #ffffff; --ink: #1f1f1d; --muted: #6b6a66; --line: #e2e0da;
+  --accent: #2f6fdb; --accent-ink: #ffffff; --chip: #ecebe6; --sel: #2f6fdb; --danger: #c0392b;
+  --shadow: 0 1px 3px rgba(0,0,0,.08);
+  --del: #a3463d; --del-bg: #fbeeec; --del-line: #ecc9c4;
+}
+@media (prefers-color-scheme: dark) {
+  :root { --bg: #161615; --panel: #1f1f1e; --ink: #ecebe7; --muted: #9a9892; --line: #33322f;
+          --accent: #5b93f0; --chip: #2c2b29; --sel: #5b93f0; --shadow: none;
+          --del: #e08a80; --del-bg: #3a2523; --del-line: #5c3733; }
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; }
+body { background: var(--bg); color: var(--ink); font: 14px/1.4 system-ui, -apple-system, "Segoe UI", sans-serif; }
+button, input, select { font: inherit; color: inherit; }
+button { cursor: pointer; border: 1px solid var(--line); background: var(--panel); border-radius: 8px; padding: 6px 12px; }
+button:hover { border-color: var(--muted); }
+button.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+/* delete buttons: a soft red, not alarming */
+button.del { color: var(--del); background: var(--del-bg); border-color: var(--del-line); }
+button.del:hover { border-color: var(--del); }
+input[type=text], input[type=search], select { border: 1px solid var(--line); background: var(--panel); border-radius: 8px; padding: 7px 10px; }
+input:focus, select:focus, button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+.app { display: grid; grid-template-columns: 250px 1fr; grid-template-rows: auto 1fr; height: 100vh; }
+header { grid-column: 1 / -1; display: flex; gap: 10px; align-items: center; padding: 10px 16px; background: var(--panel); border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+header h1 { font-size: 17px; margin: 0 8px 0 0; font-weight: 600; }
+#q { flex: 1 1 280px; min-width: 180px; font-size: 15px; }
+#count { color: var(--muted); white-space: nowrap; }
+label.toggle { display: flex; gap: 6px; align-items: center; white-space: nowrap; cursor: pointer; }
+
+aside { overflow-y: auto; padding: 14px; border-right: 1px solid var(--line); background: var(--panel); }
+aside h2 { font-size: 12px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); margin: 16px 0 8px; }
+aside h2:first-child { margin-top: 0; }
+#tagFilter { width: 100%; margin-bottom: 8px; }
+.tagcloud { display: flex; flex-wrap: wrap; gap: 5px; }
+.chip { display: inline-flex; align-items: center; gap: 4px; background: var(--chip); border: 1px solid transparent; border-radius: 999px; padding: 2px 9px; font-size: 13px; cursor: pointer; }
+.chip:hover { border-color: var(--muted); }
+.chip .n { color: var(--muted); font-size: 11px; }
+.chip.on { background: var(--accent); color: var(--accent-ink); }
+.chip.on .n { color: inherit; opacity: .8; }
+.chip .x { border: 0; background: none; padding: 0 0 0 2px; color: var(--muted); font-size: 15px; line-height: 1; }
+.chip .x:hover { color: var(--danger); }
+.chip.auto { background: transparent; border: 1px dashed var(--muted); color: var(--muted); }
+.chip .pct { font-size: 10.5px; font-variant-numeric: tabular-nums; opacity: .85; }
+.chip .pct.lo { color: #c77d12; }
+#autoStatus { border-radius: 999px; font-size: 13px; padding: 4px 12px; white-space: nowrap; }
+#autoStatus.busy { border-color: var(--accent); color: var(--accent); }
+#autoStatus.err { border-color: var(--danger); color: var(--danger); }
+dialog { border: 1px solid var(--line); border-radius: 14px; background: var(--panel); color: var(--ink); width: min(820px, calc(100vw - 32px)); max-height: calc(100vh - 48px); padding: 0; }
+dialog::backdrop { background: rgba(0,0,0,.45); }
+.dlg { padding: 18px 20px; display: flex; flex-direction: column; gap: 14px; }
+.dlg h2 { margin: 0; font-size: 18px; }
+.dlg h3 { margin: 6px 0 0; font-size: 14px; }
+.dlg .row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.dlg .grid2 { display: grid; grid-template-columns: auto 1fr; gap: 8px 14px; align-items: center; }
+.vocab { width: 100%; border-collapse: collapse; font-size: 13px; }
+.vocab td { padding: 3px 4px; border-bottom: 1px solid var(--line); }
+.vocab td:first-child { white-space: nowrap; font-weight: 600; }
+.vocab input[type=text] { width: 100%; padding: 4px 8px; }
+.vocabwrap { max-height: 38vh; overflow-y: auto; border: 1px solid var(--line); border-radius: 8px; }
+.vocab td.arrow, .vocab td.n { width: 1%; white-space: nowrap; color: var(--muted); font-weight: normal; }
+.vocab td.n a { color: var(--accent); cursor: pointer; text-decoration: none; }
+.vocab td.n a:hover { text-decoration: underline; }
+.vocab .none { color: var(--muted); font-weight: normal; padding: 10px; }
+.tabs { display: flex; gap: 2px; border-bottom: 1px solid var(--line); margin: 0 -20px; padding: 0 20px; }
+.tabs button { border: 0; border-bottom: 2px solid transparent; border-radius: 0; background: none; padding: 8px 12px; color: var(--muted); }
+.tabs button[aria-selected=true] { color: var(--ink); border-bottom-color: var(--accent); font-weight: 600; }
+.panel { display: flex; flex-direction: column; gap: 12px; }
+.panel[hidden] { display: none; }
+.note { background: var(--chip); border-radius: 8px; padding: 9px 12px; font-size: 13px; }
+.note.warn { border-left: 3px solid var(--danger); }
+.note code { background: var(--panel); padding: 0 4px; border-radius: 4px; user-select: all; }
+label.big { font-weight: 600; display: flex; gap: 8px; align-items: center; }
+.dim { opacity: .5; pointer-events: none; }
+.foot { display: flex; gap: 10px; align-items: center; justify-content: flex-end; border-top: 1px solid var(--line); margin: 0 -20px -18px; padding: 12px 20px; }
+.foot .help { margin-right: auto; }
+
+.roots { list-style: none; margin: 0; padding: 0; }
+.roots li { display: flex; gap: 6px; align-items: center; padding: 4px 0; font-size: 13px; word-break: break-all; }
+.roots li span { flex: 1; }
+.roots li small { color: var(--muted); }
+.roots li button { padding: 0 6px; font-size: 12px; }
+.addroot { display: flex; gap: 6px; margin-top: 6px; }
+.addroot input { flex: 1; min-width: 0; }
+.help { color: var(--muted); font-size: 12.5px; }
+.help code { background: var(--chip); padding: 0 4px; border-radius: 4px; }
+
+main { overflow-y: auto; padding: 14px 16px 90px; }
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 10px; }
+.card { position: relative; background: var(--panel); border-radius: 10px; overflow: hidden; box-shadow: var(--shadow); border: 2px solid transparent; cursor: zoom-in; }
+.card.sel { border-color: var(--sel); }
+.card .ph { aspect-ratio: 1; background: var(--chip); }
+.card img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.card .check { position: absolute; top: 6px; left: 6px; width: 26px; height: 26px; border-radius: 50%; border: 2px solid #fff; background: rgba(0,0,0,.25); display: grid; place-items: center; color: #fff; font-size: 15px; opacity: 0; transition: opacity .1s; cursor: pointer; padding: 0; }
+.card:hover .check, .card.sel .check, body.selecting .card .check { opacity: 1; }
+.card.sel .check { background: var(--sel); border-color: var(--sel); }
+.card .meta { padding: 6px 8px; }
+.card .name { font-size: 12px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.card .tags { display: flex; flex-wrap: wrap; gap: 3px; margin-top: 3px; min-height: 4px; }
+.card .tags .chip { font-size: 11px; padding: 0 6px; cursor: default; }
+.card .tags .chip.toggle { cursor: pointer; }
+.card .tags .chip.toggle:hover { border-color: var(--accent); color: var(--ink); }
+.empty { color: var(--muted); text-align: center; padding: 60px 20px; }
+#sentinel { height: 40px; }
+
+.bulk { position: fixed; left: 50%; bottom: 16px; transform: translateX(-50%); width: min(900px, calc(100vw - 32px)); background: var(--panel); border: 1px solid var(--line); border-radius: 14px; box-shadow: 0 6px 30px rgba(0,0,0,.18); padding: 10px 14px; display: none; gap: 10px; align-items: center; flex-wrap: wrap; z-index: 5; }
+.bulk.show { display: flex; }
+.bulk input { flex: 1 1 200px; }
+.bulk .current { flex-basis: 100%; display: flex; flex-wrap: wrap; gap: 5px; align-items: center; }
+.bulk .current:empty { display: none; }
+
+.viewer { position: fixed; inset: 0; background: rgba(10,10,10,.94); display: none; z-index: 10; color: #eee; }
+.viewer.show { display: grid; grid-template-columns: 1fr 300px; }
+.viewer .stage { position: relative; display: grid; place-items: center; min-width: 0; min-height: 0; padding: 16px; overflow: hidden; }
+.viewer .stage img { max-width: 100%; max-height: calc(100vh - 32px); object-fit: contain; }
+.viewer .nav { position: absolute; top: 50%; transform: translateY(-50%); background: rgba(255,255,255,.1); border: 0; color: #fff; font-size: 28px; width: 48px; height: 64px; border-radius: 8px; }
+.viewer .nav:hover { background: rgba(255,255,255,.2); }
+.viewer .prev { left: 12px; } .viewer .next { right: 12px; }
+.viewer .rot { position: absolute; top: 12px; right: 12px; display: flex; gap: 6px; }
+.viewer .rot button { background: rgba(255,255,255,.1); border: 0; color: #fff; font-size: 20px; width: 40px; height: 40px; border-radius: 8px; padding: 0; }
+.viewer .rot button:hover { background: rgba(255,255,255,.2); }
+.viewer .stage img { transition: opacity .15s, transform .12s ease-out; transform-origin: center; user-select: none; -webkit-user-drag: none; touch-action: none; }
+.viewer .stage img.zoomed { cursor: grab; }
+.viewer .stage img.dragging { cursor: grabbing; transition: opacity .15s; }
+.viewer .rot .sep { width: 8px; }
+.viewer .rot #vZoomLevel { width: auto; min-width: 58px; font-size: 13px; padding: 0 8px; font-variant-numeric: tabular-nums; }
+.viewer .stage img.turning { opacity: .35; }
+.viewer .side { background: #1c1c1b; padding: 18px; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; }
+.viewer .side .chip { background: #333; color: #eee; }
+.viewer .side .chip.auto { background: transparent; border-color: #888; color: #bbb; }
+.viewer .side .chip .x { font-size: 28px; line-height: 22px; padding: 0 4px 2px 8px; margin: -3px -6px -3px 0; color: #aaa; }
+.viewer .side .chip .x:hover { color: #ff6b5b; }
+.viewer .side input { background: #2a2a29; border-color: #444; color: #eee; width: 100%; }
+.viewer .close { align-self: flex-end; background: none; border-color: #444; color: #eee; }
+.viewer .path { font-size: 12px; color: #aaa; word-break: break-all; }
+.viewer .vtags { display: flex; flex-wrap: wrap; gap: 5px; }
+.viewer .hint { font-size: 12px; color: #999; }
+.viewer a { color: #9cc0ff; }
+.viewer .side .tbtn { background: #2a2a29; border-color: #444; color: #eee; font-size: 12px; padding: 3px 10px; }
+.viewer .side .tbtn:hover { border-color: #888; }
+.viewer details summary { cursor: pointer; font-weight: 600; font-size: 13px; padding: 2px 0; }
+.viewer details > div { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; }
+.viewer .vtext { white-space: pre-wrap; font-size: 12.5px; line-height: 1.45; background: #242423; border-radius: 8px; padding: 10px; max-height: 45vh; overflow: auto; color: #ddd; }
+.viewer .vtext mark { background: #e2b93b; color: #111; border-radius: 2px; }
+.viewer .vbtns { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+/* document mode: the photo and its text side by side, the text editable */
+.viewer.show.doc { grid-template-columns: 1fr var(--textw, 45vw); }
+.viewer .side { position: relative; }
+.viewer .grip { display: none; position: absolute; left: -4px; top: 0; bottom: 0; width: 8px; cursor: col-resize; z-index: 1; }
+.viewer.doc .grip { display: block; }
+.viewer .grip:hover, .viewer .grip.dragging { background: rgba(156,192,255,.35); }
+.viewer.doc #vText { flex: 1 1 auto; display: flex; flex-direction: column; min-height: 0; }
+.viewer.doc #vText details { flex: 1 1 auto; display: flex; flex-direction: column; min-height: 0; }
+.viewer.doc #vText details > div { flex: 1 1 auto; min-height: 0; }
+.viewer.doc .side { overflow: hidden; }
+.viewer textarea.vedit { flex: 1 1 auto; min-height: 240px; width: 100%; resize: none; font: 14px/1.55 ui-monospace, "DejaVu Sans Mono", monospace; background: #242423; color: #eee; border: 1px solid #444; border-radius: 8px; padding: 12px; }
+.viewer textarea.vedit:focus { outline: 2px solid #9cc0ff; outline-offset: -1px; }
+.viewer .tmeta { font-size: 12px; color: #aaa; }
+.viewer .tmeta b { color: #e2b93b; font-weight: 600; }
+.viewer .dirty { color: #e2b93b; font-size: 12px; }
+.viewer .side .tbtn.on { background: #3b4f72; border-color: #9cc0ff; }
+.viewer .vbtns label { font-size: 12px; color: #ccc; display: flex; gap: 4px; align-items: center; }
+
+.toast { position: fixed; top: 14px; left: 50%; transform: translateX(-50%); background: var(--ink); color: var(--bg); padding: 8px 16px; border-radius: 8px; z-index: 20; display: none; }
+.toast.show { display: block; }
+
+@media (max-width: 760px) {
+  .app { grid-template-columns: 1fr; grid-template-rows: auto auto 1fr; }
+  aside { border-right: 0; border-bottom: 1px solid var(--line); max-height: 30vh; }
+  .grid { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); }
+  .viewer.show, .viewer.show.doc { grid-template-columns: 1fr; grid-template-rows: 1fr auto; }
+  .viewer .side { max-height: 40vh; }
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <h1>Галерия</h1>
+    <input id="q" type="search" placeholder="Търсене: бойлер, вилата, -баня …" autocomplete="off" list="tagList">
+    <select id="filter" title="Филтър">
+      <option value="">Всички снимки</option>
+      <option value="untagged">Без потвърдени тагове</option>
+      <option value="review">За преглед: с автоматични тагове</option>
+      <option value="check_text">Текст за проверка</option>
+    </select>
+    <select id="sort" title="Подредба">
+      <option value="newest">Най-нови първо</option>
+      <option value="oldest">Най-стари първо</option>
+      <option value="name">По име</option>
+      <option value="path">По папка</option>
+    </select>
+    <span id="count"></span>
+    <button id="autoStatus" title="Настройки на автоматичното тагване">Автоматично тагване</button>
+  </header>
+
+  <aside>
+    <h2>Тагове</h2>
+    <input id="tagFilter" type="search" placeholder="Филтрирай таговете…">
+    <div class="tagcloud" id="tags"></div>
+
+    <h2>Папки</h2>
+    <ul class="roots" id="roots"></ul>
+    <div class="addroot">
+      <input id="newRoot" type="text" placeholder="/път/до/снимки">
+      <button id="addRoot">Добави</button>
+    </div>
+    <p><button id="rescan">Пресканирай всички</button></p>
+
+    <h2>Как се търси</h2>
+    <div class="help">
+      <p>Думите се търсят в таговете и в пътя до файла. Всички думи трябва да съвпадат.</p>
+      <p><code>бойлер вила</code> — снимки с двете.<br>
+         <code>-баня</code> — без „баня“.<br>
+         <code>"стара къща"</code> — фраза.<br>
+         „вилата“ намира и таг „вила“.</p>
+      <p>Ако текстът на снимките е разпознат, търсенето намира и думи от него.</p>
+      <p>Пунктираните тагове са сложени автоматично. Клик върху такъв таг го потвърждава, × го маха и той не се връща. Таг, сложен ръчно на поне 3 снимки, се предлага за подобни снимки.</p>
+      <p>Клик върху снимка я отваря. Кръгчето в ъгъла я избира. Shift+клик избира поредица.</p>
+    </div>
+  </aside>
+
+  <main>
+    <div class="grid" id="grid"></div>
+    <div class="empty" id="empty" hidden></div>
+    <div id="sentinel"></div>
+  </main>
+</div>
+
+<div class="bulk" id="bulk">
+  <strong id="selCount"></strong>
+  <input id="bulkTag" type="text" placeholder="Добави таг на избраните (Enter). Няколко със запетая." list="tagList">
+  <button class="primary" id="bulkAdd">Добави</button>
+  <button id="bulkConfirm" title="Потвърди всички автоматични тагове на избраните">✓ Потвърди автоматичните</button>
+  <button id="bulkRot" title="Завърти избраните надясно. Файловете не се променят.">↻ Завърти</button>
+  <button id="bulkOcr" title="Прочети текста на избраните снимки, за да се търси по него" hidden>Разпознай текста</button>
+  <button id="selAll">Избери всички</button>
+  <button id="selNone">Откажи</button>
+  <div class="current" id="bulkTags"></div>
+</div>
+
+<div class="viewer" id="viewer">
+  <div class="stage">
+    <img id="vImg" alt="">
+    <button class="nav prev" id="vPrev" title="Предишна (←)">‹</button>
+    <button class="nav next" id="vNext" title="Следваща (→)">›</button>
+    <div class="rot">
+      <button id="vZoomOut" title="Намали (−)">−</button>
+      <button id="vZoomLevel" title="Побери в екрана (0)">100%</button>
+      <button id="vZoomIn" title="Увеличи (+)">+</button>
+      <span class="sep"></span>
+      <button id="vRotL" title="Завърти наляво (Shift+R)">↺</button>
+      <button id="vRotR" title="Завърти надясно (R)">↻</button>
+    </div>
+  </div>
+  <div class="side">
+    <div class="grip" id="vGrip" title="Влачете, за да смените ширината на текста"></div>
+    <div class="vbtns" style="justify-content: space-between">
+      <button class="tbtn" id="vDoc" title="Снимката и текстът един до друг, с редакция на текста (D)">Документ</button>
+      <button class="close" id="vClose" title="Затвори (Esc)">✕ Затвори</button>
+    </div>
+    <div>
+      <div id="vName" style="font-weight:600"></div>
+      <div class="path" id="vPath"></div>
+      <div class="path" id="vInfo"></div>
+    </div>
+    <div class="vtags" id="vTags"></div>
+    <input id="vTag" type="text" placeholder="Нов таг (Enter)" list="tagList">
+    <div class="hint">← → разглеждане · + − 0 или колелцето мащабират, влачене мести · R завърта · D документ · Enter добавя таг · Esc затваря</div>
+    <div id="vText"></div>
+    <a id="vOpen" target="_blank" rel="noopener">Отвори оригинала</a>
+  </div>
+</div>
+
+<dialog id="settings">
+  <div class="dlg">
+    <div class="row" style="justify-content:space-between">
+      <h2>Автоматично тагване</h2>
+      <button id="setClose" title="Затвори (Esc)">✕</button>
+    </div>
+    <div class="help" id="setStatus"></div>
+    <div class="tabs" role="tablist">
+      <button role="tab" data-tab="general">Общи</button>
+      <button role="tab" data-tab="vocab">Речник</button>
+      <button role="tab" data-tab="text">Текст от снимките</button>
+    </div>
+
+    <div class="panel" data-panel="general">
+      <div class="grid2">
+        <label><input type="checkbox" id="s_auto_enabled"> Разпознаване</label>
+        <span class="help">Моделът търси думите от речника във всяка снимка. Работи само на този компютър.</span>
+        <label><input type="checkbox" id="s_learn_enabled"> Учене от вашите тагове</label>
+        <span class="help">Таг, който сте сложили ръчно на поне 3 снимки, се предлага за много подобни снимки. Така се учат места като „вила“.</span>
+        <label><input type="checkbox" id="s_folder_enabled"> Имена на папки</label>
+        <span class="help">Снимките в папка „Вила“ получават таг „вила“.</span>
+        <label for="s_vocab_threshold">Разпознаване</label>
+        <select id="s_vocab_threshold">
+          <option value="0.03">Строго: по-малко, но по-точни тагове</option>
+          <option value="0.01">Нормално</option>
+          <option value="0.003">Свободно: повече тагове, повече грешки</option>
+        </select>
+        <label for="s_learn_similarity">Учене</label>
+        <select id="s_learn_similarity">
+          <option value="0.9">Строго: само почти еднакви снимки</option>
+          <option value="0.85">Нормално</option>
+          <option value="0.8">Свободно: и по-различни снимки</option>
+        </select>
+        <label for="s_max_auto_tags">Най-много тагове</label>
+        <select id="s_max_auto_tags"><option>3</option><option>5</option><option>8</option></select>
+      </div>
+    </div>
+
+    <div class="panel" data-panel="vocab" hidden>
+      <div class="help">Думите, които моделът търси във всяка снимка. Вляво е тагът, който виждате и търсите. Вдясно е описанието, което чете моделът. На английски („a photo of …“) разпознаването е много по-точно. Промените се запазват веднага.</div>
+      <div class="row">
+        <input id="vNewTag" type="text" placeholder="таг, напр. лична карта" style="flex:0 1 180px">
+        <input id="vNewPrompt" type="text" placeholder="описание, напр. a photo of an ID card" style="flex:1 1 260px">
+        <button id="vAdd">Добави</button>
+      </div>
+      <div class="vocabwrap"><table class="vocab"><tbody id="vocabBody"></tbody></table></div>
+    </div>
+
+    <div class="panel" data-panel="text" hidden>
+      <div class="note warn" id="ocrMissing" hidden></div>
+      <label class="big"><input type="checkbox" id="s_ocr_enabled"> Разпознавай текста автоматично</label>
+      <div class="help">По подразбиране е изключено, защото е по-бавно от останалото тагване. Текстът се чете на този компютър, на български и английски. Всяка снимка се чете само веднъж.</div>
+      <div class="grid2" id="ocrOpts">
+        <label for="s_ocr_scope">Кои снимки</label>
+        <select id="s_ocr_scope">
+          <option value="tags">Снимките с таговете по-долу и тагнатите ръчно</option>
+          <option value="all">Всички снимки (бавно)</option>
+        </select>
+        <label for="s_ocr_tags">Тагове</label>
+        <input type="text" id="s_ocr_tags" placeholder="документ, фактура, скрийншот" list="tagList">
+      </div>
+      <div class="note" id="ocrInfo"></div>
+      <div class="grid2">
+        <label for="s_texts_dir">Папка за текстовете</label>
+        <input type="text" id="s_texts_dir" placeholder="по подразбиране: texts до базата">
+      </div>
+      <div class="help">Проверените и поправените текстове се пазят тук като .md файлове, не до снимките. Подпапките повтарят пълния път до снимката. Текст от такъв файл се предпочита пред разпознатия и не се чете наново. <span id="textsInfo"></span></div>
+      <div class="help">Отделни снимки може да прочетете и без това: изберете ги и натиснете „Разпознай текста“ в долната лента или отворете снимката. Вече прочетеният текст се пази и се търси и когато автоматичното разпознаване е изключено.</div>
+      <h3>Учене от текста</h3>
+      <label class="big"><input type="checkbox" id="s_text_learn_enabled"> Предлагай тагове по подобен текст</label>
+      <div class="help">Таг, който сте сложили ръчно на поне 3 документа с разпознат текст, се предлага за документи с подобен текст. Например три документа с таг „благоевград данъци“ научават другите данъчни документи от Благоевград. Думите от името на тага, които ги има в примерите, трябва да ги има и в текста. До тага се вижда увереността, например <b>87%</b>, а при посочване с мишката се виждат общите думи.</div>
+      <div class="grid2">
+        <label for="s_text_learn_confidence">Увереност поне</label>
+        <select id="s_text_learn_confidence">
+          <option value="0.7">70%: по-малко, но по-точни предложения</option>
+          <option value="0.5">50%: нормално</option>
+          <option value="0.35">35%: повече предложения, повече грешки</option>
+        </select>
+      </div>
+      <h3>Правила по текста</h3>
+      <div class="help">Ако текстът на снимка съдържа някоя от думите, снимката получава тага. Тагът е пунктиран, докато не го потвърдите. Няколко думи се разделят със запетая. Думата трябва да е в началото на дума от текста: „ток“ намира „токът“, но не и „поток“. Промените се запазват веднага.</div>
+      <div class="row">
+        <input id="rWords" type="text" placeholder="думи в текста, напр. ЕВН, електроенергия" style="flex:1 1 240px">
+        <span class="help">→</span>
+        <input id="rTag" type="text" placeholder="таг, напр. ток" list="tagList" style="flex:0 1 160px">
+        <button id="rAdd">Добави</button>
+      </div>
+      <div class="vocabwrap"><table class="vocab"><tbody id="rulesBody"></tbody></table></div>
+    </div>
+
+    <div class="foot">
+      <span class="help">„Запази“ прилага настройките и преизчислява таговете.</span>
+      <button id="setRun" title="Обработи отново новите снимки и преизчисли таговете">Пусни отново</button>
+      <button class="primary" id="setSave">Запази</button>
+    </div>
+  </div>
+</dialog>
+
+<datalist id="tagList"></datalist>
+<div class="toast" id="toast"></div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const PAGE = 200;
+const state = { items: [], total: 0, loading: false, done: false, selected: new Set(), lastClicked: null, viewIndex: -1, tags: [], reqId: 0 };
+
+async function api(path, body) {
+  const opt = body === undefined ? {} : { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) };
+  const res = await fetch(path, opt);
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || res.statusText);
+  return data;
+}
+function toast(msg, ms = 2200) {
+  const t = $("toast"); t.textContent = msg; t.classList.add("show");
+  clearTimeout(toast.timer); toast.timer = setTimeout(() => t.classList.remove("show"), ms);
+}
+function el(tag, props = {}, ...kids) {
+  const e = Object.assign(document.createElement(tag), props);
+  for (const k of kids) if (k != null) e.append(k);
+  return e;
+}
+const SOURCE = { auto: "Автоматичен таг", folder: "Таг от папка", text: "Таг по текста на снимката" };
+function chip(name, opts = {}) {
+  const info = opts.info;
+  let title = opts.auto ? "Автоматичен таг" : "";
+  if (info) title = [info.note ? `${SOURCE[info.source] || "Автоматичен таг"}: ${info.note}` : SOURCE[info.source],
+    info.score != null && `Увереност ${Math.round(info.score * 100)}%`].filter(Boolean).join("\n");
+  const c = el("span", { className: "chip" + (opts.on ? " on" : "") + (opts.auto ? " auto" : ""), title }, name);
+  if (info && info.score != null) {
+    const pct = Math.round(info.score * 100);
+    c.append(el("span", { className: "pct" + (pct < 65 ? " lo" : ""), textContent: `${pct}%` }));
+  }
+  if (opts.count != null) c.append(el("span", { className: "n" }, String(opts.count)));
+  if (opts.onRemove) {
+    const x = el("button", { className: "x", title: "Премахни", textContent: "×" });
+    x.onclick = (ev) => { ev.stopPropagation(); opts.onRemove(); };
+    c.append(x);
+  }
+  if (opts.onClick) c.onclick = opts.onClick;
+  return c;
+}
+
+// ---------------------------------------------------------------- list
+function query() {
+  const f = $("filter").value;
+  return new URLSearchParams({ q: $("q").value, untagged: f === "untagged" ? "1" : "0", review: f === "review" ? "1" : "0", check_text: f === "check_text" ? "1" : "0", sort: $("sort").value });
+}
+async function reload() {
+  state.items = []; state.total = 0; state.done = false; state.viewIndex = -1;
+  $("grid").replaceChildren();
+  await loadMore(true);
+  renderTagCloud();
+}
+async function loadMore(fresh = false) {
+  if (state.loading && !fresh) return;
+  if (state.done) return;
+  state.loading = true;
+  const id = ++state.reqId;
+  const p = query(); p.set("offset", state.items.length); p.set("limit", PAGE);
+  try {
+    const data = await api("/api/images?" + p);
+    if (id !== state.reqId) return;  // a newer search superseded this one
+    const start = state.items.length;
+    state.items.push(...data.items);
+    state.total = data.total;
+    state.done = state.items.length >= data.total;
+    const frag = document.createDocumentFragment();
+    data.items.forEach((it, k) => frag.append(card(it, start + k)));
+    $("grid").append(frag);
+    renderCount();
+  } catch (e) { toast("Грешка: " + e.message); }
+  finally { if (id === state.reqId) state.loading = false; }
+  // keep filling if the sentinel is still visible
+  if (!state.done && isVisible($("sentinel"))) loadMore();
+}
+function isVisible(node) { const r = node.getBoundingClientRect(); return r.top < window.innerHeight + 400; }
+function renderCount() {
+  const empty = $("empty");
+  if (state.total === 0) {
+    empty.hidden = false;
+    empty.textContent = rootsCache.length === 0
+      ? "Още няма добавени папки. Добавете папка със снимки отляво."
+      : "Няма снимки, които да отговарят на търсенето.";
+  } else empty.hidden = true;
+  $("count").textContent = state.total === 1 ? "1 снимка" : `${state.total} снимки`;
+}
+function card(it, index) {
+  const img = el("img", { loading: "lazy", decoding: "async", src: thumbUrl(it), alt: it.name });
+  const check = el("button", { className: "check", title: "Избери", textContent: "✓" });
+  const tags = el("div", { className: "tags" });
+  it.tags.forEach((t) => tags.append(tagChip(it, t)));
+  const c = el("div", { className: "card" + (state.selected.has(it.id) ? " sel" : "") },
+    el("div", { className: "ph" }, img), check,
+    el("div", { className: "meta" }, el("div", { className: "name", title: it.path, textContent: it.name }), tags));
+  c.dataset.id = it.id;
+  check.onclick = (ev) => { ev.stopPropagation(); toggleSelect(index, ev.shiftKey); };
+  c.onclick = (ev) => {
+    if (ev.shiftKey || ev.ctrlKey || ev.metaKey || state.selected.size) toggleSelect(index, ev.shiftKey);
+    else openViewer(index);
+  };
+  return c;
+}
+const thumbUrl = (it) => `/thumb/${it.id}${it.rotation ? "?r=" + it.rotation : ""}`;
+const imageUrl = (it) => `/image/${it.id}${it.rotation ? "?r=" + it.rotation : ""}`;
+// a suggestion (dashed) is confirmed by a click; a click on a confirmed one makes it a suggestion again
+function tagChip(it, t, opts = {}) {
+  const auto = it.auto.includes(t), confirmed = (it.confirmed || []).includes(t);
+  const c = chip(t, { auto, info: it.info[t], ...opts });
+  if (auto || confirmed) {
+    c.classList.add("toggle");
+    c.title = (c.title ? c.title + "\n" : "") + (auto ? "Клик: потвърди тага" : "Потвърден автоматичен таг. Клик: върни го за преглед");
+    c.onclick = (ev) => { ev.stopPropagation(); changeTags(auto ? "confirm" : "unconfirm", [it.id], [t]); };
+  }
+  return c;
+}
+function refreshCard(it) {
+  const idx = state.items.findIndex((x) => x.id === it.id);
+  const old = document.querySelector(`.card[data-id="${it.id}"]`);
+  if (old && idx >= 0) old.replaceWith(card(it, idx));
+}
+
+// ---------------------------------------------------------------- selection
+function toggleSelect(index, range) {
+  const it = state.items[index];
+  if (range && state.lastClicked != null) {
+    const [a, b] = [Math.min(state.lastClicked, index), Math.max(state.lastClicked, index)];
+    for (let i = a; i <= b; i++) state.selected.add(state.items[i].id);
+  } else if (state.selected.has(it.id)) state.selected.delete(it.id);
+  else state.selected.add(it.id);
+  state.lastClicked = index;
+  syncSelection();
+}
+function syncSelection() {
+  document.querySelectorAll(".card").forEach((c) => c.classList.toggle("sel", state.selected.has(+c.dataset.id)));
+  const n = state.selected.size;
+  document.body.classList.toggle("selecting", n > 0);
+  $("bulk").classList.toggle("show", n > 0);
+  $("selCount").textContent = n === 1 ? "1 избрана" : `${n} избрани`;
+  // tags present on the selected (loaded) images, with how many carry each
+  const counts = new Map();
+  for (const it of state.items) if (state.selected.has(it.id)) for (const t of it.tags) counts.set(t, (counts.get(t) || 0) + 1);
+  const box = $("bulkTags"); box.replaceChildren();
+  if (counts.size) {
+    box.append(el("span", { className: "help", textContent: "Тагове на избраните:" }));
+    [...counts].sort((a, b) => b[1] - a[1]).forEach(([t, k]) =>
+      box.append(chip(t, { count: k, onRemove: () => changeTags("remove", [...state.selected], [t]) })));
+  }
+}
+async function changeTags(action, ids, tags) {
+  if (!ids.length || (!tags.length && action !== "confirm")) return;
+  try {
+    const data = await api(`/api/tags/${action}`, { ids, tags });
+    for (const [id, t] of Object.entries(data.tags)) {
+      const it = state.items.find((x) => x.id === +id);
+      if (it) { Object.assign(it, { tags: t.tags, auto: t.auto, info: t.info, confirmed: t.confirmed }); refreshCard(it); }
+    }
+    syncSelection();
+    if (state.viewIndex >= 0) renderViewerTags();
+    loadTags();
+    clearTimeout(autoTimer); autoTimer = setTimeout(pollAuto, 4500);  // learned tags follow ~3 s later
+  } catch (e) { toast("Грешка: " + e.message); }
+}
+
+// ---------------------------------------------------------------- tags sidebar
+async function loadTags() {
+  state.tags = await api("/api/tags");
+  $("tagList").replaceChildren(...state.tags.map((t) => el("option", { value: t.name })));
+  renderTagCloud();
+}
+function searchTerms() { return $("q").value.toLowerCase().split(/[\s,]+/).filter(Boolean); }
+function renderTagCloud() {
+  const f = $("tagFilter").value.trim().toLowerCase();
+  const terms = searchTerms();
+  const box = $("tags"); box.replaceChildren();
+  const list = state.tags.filter((t) => !f || t.name.includes(f));
+  if (!list.length) box.append(el("span", { className: "help", textContent: state.tags.length ? "Няма съвпадения." : "Още няма тагове." }));
+  for (const t of list) {
+    const needle = t.name.includes(" ") ? `"${t.name}"` : t.name;
+    const on = terms.includes(needle);
+    box.append(chip(t.name, {
+      count: t.count, on,
+      onClick: (ev) => {
+        let ts = searchTerms();
+        if (on) ts = ts.filter((x) => x !== needle);
+        else if (ev.shiftKey || ev.ctrlKey || ev.metaKey) ts.push(needle);
+        else ts = [needle];
+        $("q").value = ts.join(" "); reload();
+      },
+    }));
+  }
+}
+
+// ---------------------------------------------------------------- folders
+let rootsCache = [];
+async function loadRoots() {
+  rootsCache = await api("/api/roots");
+  const ul = $("roots"); ul.replaceChildren();
+  if (!rootsCache.length) ul.append(el("li", { className: "help", textContent: "Няма добавени папки." }));
+  for (const r of rootsCache) {
+    const rm = el("button", { className: "del", title: "Премахни папката от галерията (файловете и таговете остават)", textContent: "×" });
+    rm.onclick = async () => {
+      if (!confirm(`Да се премахне ли „${r.path}“ от галерията?\nФайловете не се изтриват, таговете се пазят.`)) return;
+      await api("/api/roots/remove", { path: r.path }); await loadRoots(); reload();
+    };
+    ul.append(el("li", {}, el("span", { title: r.path }, r.path, " ", el("small", {}, r.exists ? `(${r.count})` : "(липсва)")), rm));
+  }
+}
+async function busy(btn, label, fn) {
+  const old = btn.textContent; btn.disabled = true; btn.textContent = label;
+  try { await fn(); } catch (e) { toast("Грешка: " + e.message, 4000); }
+  finally { btn.disabled = false; btn.textContent = old; }
+}
+function statsText(s) { return `Нови ${s.added}, променени ${s.updated}, преместени ${s.moved}, изчезнали ${s.missing}.`; }
+
+// ---------------------------------------------------------------- viewer
+function openViewer(index) {
+  state.viewIndex = index;
+  $("viewer").classList.add("show");
+  renderViewer();
+}
+function closeViewer() {
+  if (!leaveText()) return;
+  $("viewer").classList.remove("show", "doc"); state.viewIndex = -1; resetZoom();
+}
+async function step(d) {
+  if (!leaveText()) return;
+  let i = state.viewIndex + d;
+  if (i >= state.items.length && !state.done) await loadMore();
+  if (i < 0 || i >= state.items.length) return;
+  state.viewIndex = i; renderViewer();
+}
+function renderViewer() {
+  const it = state.items[state.viewIndex];
+  const img = $("vImg");
+  if (img.getAttribute("src") !== imageUrl(it)) { img.classList.add("turning"); img.src = imageUrl(it); resetZoom(); }
+  $("vName").textContent = it.name;
+  $("vPath").textContent = it.path;
+  const [w, h] = it.rotation % 180 ? [it.height, it.width] : [it.width, it.height];
+  $("vInfo").textContent = [w && `${w}×${h}`, it.taken && `снимана ${it.taken}`, `${state.viewIndex + 1} от ${state.total}`].filter(Boolean).join(" · ");
+  $("vOpen").href = imageUrl(it);
+  $("vPrev").disabled = state.viewIndex === 0;
+  renderViewerTags();
+  renderViewerText();
+  // preload the neighbour
+  const nx = state.items[state.viewIndex + 1]; if (nx) new Image().src = imageUrl(nx);
+}
+function renderViewerTags() {
+  const it = state.items[state.viewIndex];
+  const box = $("vTags"); box.replaceChildren();
+  if (!it.tags.length) box.append(el("span", { className: "hint", textContent: "Няма тагове." }));
+  it.tags.forEach((t) => box.append(tagChip(it, t, { onRemove: () => changeTags("remove", [it.id], [t]) })));
+}
+
+// text read from the photo (OCR), with the search words highlighted
+let textOpen = true;
+function highlight(box, text) {
+  const words = searchTerms().filter((t) => !t.startsWith("-")).map((t) => t.replace(/"/g, "")).filter((t) => t.length > 1);
+  if (!words.length) return box.append(text);
+  const re = new RegExp(`(${words.map((w) => w.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|")})`, "giu");
+  let found = false;
+  text.split(re).forEach((part, i) => {
+    if (i % 2) { box.append(el("mark", { textContent: part })); found = true; } else if (part) box.append(part);
+  });
+  return found;
+}
+// document mode: the photo and its text side by side, the text editable.
+// It stays on from photo to photo and applies to the photos that have text.
+let docMode = false;
+try { docMode = localStorage.getItem("docMode") === "1"; } catch (e) {}
+try { const w = localStorage.getItem("textWidth"); if (w) $("viewer").style.setProperty("--textw", w); } catch (e) {}
+const edit = { id: null, saved: "", box: null };  // the text being edited
+function textDirty() { return edit.box && edit.box.isConnected && edit.box.value !== edit.saved; }
+function leaveText() {
+  if (!textDirty()) return true;
+  return confirm("Текстът има незапазени промени. Да се загубят ли?");
+}
+function setDocMode(on) {
+  if (on === docMode) return;
+  if (!on && !leaveText()) return;
+  docMode = on;
+  try { localStorage.setItem("docMode", on ? "1" : "0"); } catch (e) {}
+  if (state.viewIndex >= 0) renderViewerText();
+}
+async function saveText(it, btn) {
+  const text = edit.box.value;
+  if (btn) btn.disabled = true;
+  try {
+    await api(`/api/text/${it.id}`, { text, reviewed: true });  // saving means the text is checked
+    edit.saved = text;
+    toast("Текстът е запазен");
+    renderViewerText();
+    clearTimeout(autoTimer); autoTimer = setTimeout(pollAuto, 3500);  // text tags follow
+  } catch (e) { toast("Грешка: " + e.message, 5000); if (btn) btn.disabled = false; }
+}
+const METHOD = { tesseract: "Tesseract", manual: "написан на ръка" };
+function metaLine(t) {
+  const m = t.meta || {};
+  if (!t.file) return el("div", { className: "tmeta", textContent: "Разпознат с Tesseract. При запазване се създава .md файл." });
+  const parts = [METHOD[m.method] || m.method || "от файл", m.extracted_by, m.edited === "true" && "поправен"].filter(Boolean);
+  const line = el("div", { className: "tmeta", title: t.file }, parts.join(" · "));
+  if (m.review === "true") line.append(" · ", el("b", { textContent: "за проверка" }));
+  return line;
+}
+async function renderViewerText() {
+  const it = state.items[state.viewIndex];
+  const box = $("vText");
+  if (!it) return box.replaceChildren();
+  let t;
+  try { t = await api(`/api/text/${it.id}`); } catch (e) { return; }
+  if (state.items[state.viewIndex] !== it) return;  // moved on meanwhile
+  const doc = docMode && t.text != null && !t.queued;
+  $("viewer").classList.toggle("doc", doc);
+  $("vDoc").classList.toggle("on", docMode);
+  if (doc) return renderTextEditor(box, it, t);
+  const body = el("div");
+  const read = (label) => {
+    const b = el("button", { className: "tbtn", textContent: label, title: "Прочети текста на тази снимка" });
+    b.onclick = () => requestOcr([it.id], b);
+    return b;
+  };
+  // text from a .md file is checked or corrected: reading again would overwrite nothing, so no button
+  const again = (label) => (ocrInfo.available && !t.file ? read(label) : null);
+  let open = textOpen;
+  if (t.queued) body.append(el("span", { className: "hint", textContent: "Текстът се разпознава…" }));
+  else if (t.text) {
+    const pre = el("div", { className: "vtext" });
+    if (highlight(pre, t.text)) open = true;
+    const copy = el("button", { className: "tbtn", textContent: "Копирай" });
+    copy.onclick = async () => { try { await navigator.clipboard.writeText(t.text); toast("Текстът е копиран"); } catch (e) { toast("Копирането не успя"); } };
+    const fix = el("button", { className: "tbtn", textContent: "Редактирай", title: "Снимката и текстът един до друг (D)" });
+    fix.onclick = () => setDocMode(true);
+    body.append(metaLine(t), pre, el("div", { className: "vbtns" }, fix, copy, again("Прочети отново")));
+  } else if (t.text === "") body.append(el("span", { className: "hint", textContent: "Не е открит текст." }), el("div", { className: "vbtns" }, again("Прочети отново")));
+  else if (ocrInfo.available) body.append(el("span", { className: "hint", textContent: "Текстът на тази снимка не е разпознат. Разпознатият текст се търси." }), el("div", { className: "vbtns" }, read("Разпознай текста")));
+  else body.append(el("span", { className: "hint", textContent: ocrInfo.message || "Разпознаването на текст не е налично." }));
+  const d = el("details", { open }, el("summary", { textContent: "Текст от снимката" }), body);
+  d.ontoggle = () => { textOpen = d.open; };
+  box.replaceChildren(d);
+}
+function renderTextEditor(box, it, t) {
+  const same = edit.id === it.id && textDirty();
+  const area = el("textarea", { className: "vedit", spellcheck: true, lang: "bg" });
+  area.value = same ? edit.box.value : t.text;
+  Object.assign(edit, { id: it.id, saved: same ? edit.saved : t.text, box: area });
+  const dirty = el("span", { className: "dirty" });
+  const mark = () => { dirty.textContent = area.value !== edit.saved ? "● незапазено" : ""; };
+  area.oninput = mark; mark();
+  const save = el("button", { className: "tbtn", textContent: "Запази", title: "Запазва и маха отметката „за проверка“ (Ctrl+S)" });
+  save.onclick = () => saveText(it, save);
+  const undo = el("button", { className: "tbtn", textContent: "Върни", title: "Връща последно запазения текст" });
+  undo.onclick = () => { area.value = edit.saved; mark(); };
+  // opt-in check by Opus: it looks at the photo and corrects only the wrong places
+  const job = t.verify || {};
+  const running = job.state === "running";
+  const opus = t.can_verify ? el("button", { className: "tbtn", textContent: running ? "Opus проверява…" : "Провери с Opus",
+    title: "Claude Opus сравнява текста със снимката и поправя грешките. Струва повече токени, затова е само по желание." }) : null;
+  if (opus) {
+    opus.disabled = running;
+    opus.onclick = async () => {
+      if (area.value !== edit.saved) return toast("Първо запазете текста", 3000);
+      opus.disabled = true;
+      try {
+        if (!t.file) await api(`/api/text/${it.id}`, { text: area.value, reviewed: false });  // Opus works on the .md file
+        await api(`/api/verify/${it.id}`, {});
+        toast("Opus проверява текста във фон. Може да разглеждате други снимки.", 3500);
+        watchVerify(it.id);
+        renderViewerText();
+      } catch (e) { toast("Грешка: " + e.message, 5000); opus.disabled = false; }
+    };
+  }
+  if (running) watchVerify(it.id);
+  area.addEventListener("keydown", (e) => {
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "s") { e.preventDefault(); save.click(); }
+  });
+  const body = el("div", { style: "display:flex;flex-direction:column;gap:8px;flex:1 1 auto;min-height:0" },
+    metaLine(t), area, el("div", { className: "vbtns" }, save, undo, opus, dirty),
+    job.state && !running && job.finished > (Date.now() / 1000 - 600) ? el("div", { className: "tmeta", textContent: job.message }) : null);
+  box.replaceChildren(el("details", { open: true }, el("summary", { textContent: "Текст от снимката" }), body));
+}
+$("vDoc").onclick = () => setDocMode(!docMode);
+// follow a running Opus check; when it ends, show the new text if that photo is open
+const verifying = new Map();
+function watchVerify(id) {
+  if (verifying.has(id)) return;
+  verifying.set(id, setInterval(async () => {
+    let t; try { t = await api(`/api/text/${id}`); } catch (e) { return; }
+    if (t.verify && t.verify.state === "running") return;
+    clearInterval(verifying.get(id)); verifying.delete(id);
+    toast(t.verify ? t.verify.message : "Проверката приключи", 4000);
+    const open = state.items[state.viewIndex];
+    if (open && open.id === id && !textDirty()) renderViewerText();
+  }, 4000));
+}
+window.addEventListener("beforeunload", (e) => { if (textDirty()) { e.preventDefault(); e.returnValue = ""; } });
+// the border between the photo and the text can be dragged
+(() => {
+  const grip = $("vGrip");
+  let dragging = false;
+  grip.addEventListener("pointerdown", (e) => { dragging = true; grip.setPointerCapture(e.pointerId); grip.classList.add("dragging"); });
+  grip.addEventListener("pointermove", (e) => {
+    if (!dragging) return;
+    const w = Math.min(window.innerWidth - 240, Math.max(280, window.innerWidth - e.clientX));
+    $("viewer").style.setProperty("--textw", `${w}px`);
+  });
+  grip.addEventListener("pointerup", () => {
+    dragging = false; grip.classList.remove("dragging");
+    try { localStorage.setItem("textWidth", $("viewer").style.getPropertyValue("--textw")); } catch (e) {}
+  });
+})();
+async function requestOcr(ids, btn) {
+  if (btn) btn.disabled = true;
+  try {
+    await api("/api/ocr/run", { ids });
+    toast(ids.length === 1 ? "Текстът се разпознава във фон…" : `Текстът на ${ids.length} снимки се разпознава във фон…`, 3000);
+    if (state.viewIndex >= 0) renderViewerText();
+    clearTimeout(autoTimer); autoTimer = setTimeout(pollAuto, 800);
+  } catch (e) { toast(e.message, 5000); if (btn) btn.disabled = false; }
+}
+
+// turning changes only how the photo is shown; the file stays as it is
+async function rotate(ids, degrees) {
+  if (!ids.length) return;
+  try {
+    const { rotation } = await api("/api/rotate", { ids, degrees });
+    for (const [id, r] of Object.entries(rotation)) {
+      const it = state.items.find((x) => x.id === +id);
+      if (it) { it.rotation = r; refreshCard(it); }
+    }
+    if (state.viewIndex >= 0) renderViewer();
+    if (ids.length > 1) toast(`Завъртяни ${ids.length} снимки`);
+    clearTimeout(autoTimer); autoTimer = setTimeout(pollAuto, 2500);  // recognised again
+  } catch (e) { toast("Грешка: " + e.message); }
+}
+$("vImg").addEventListener("load", () => $("vImg").classList.remove("turning"));
+$("vImg").addEventListener("error", () => $("vImg").classList.remove("turning"));
+$("vRotL").onclick = () => rotate([state.items[state.viewIndex].id], -90);
+$("vRotR").onclick = () => rotate([state.items[state.viewIndex].id], 90);
+$("bulkRot").onclick = () => rotate([...state.selected], 90);
+
+// ---------------------------------------------------------------- wiring
+let debounce;
+$("q").addEventListener("input", () => { clearTimeout(debounce); debounce = setTimeout(reload, 250); });
+$("filter").onchange = reload;
+$("sort").onchange = reload;
+$("tagFilter").oninput = renderTagCloud;
+
+$("bulkAdd").onclick = () => {
+  const tags = $("bulkTag").value.split(/[,;]/).map((s) => s.trim()).filter(Boolean);
+  if (!tags.length) return $("bulkTag").focus();
+  changeTags("add", [...state.selected], tags);
+  $("bulkTag").value = "";
+};
+$("bulkTag").addEventListener("keydown", (e) => { if (e.key === "Enter") $("bulkAdd").click(); });
+$("bulkConfirm").onclick = () => changeTags("confirm", [...state.selected], []);
+$("bulkOcr").onclick = () => requestOcr([...state.selected], null);
+$("selAll").onclick = () => { state.items.forEach((it) => state.selected.add(it.id)); syncSelection();
+  if (!state.done) toast(`Избрани са заредените ${state.items.length} от ${state.total}. Превъртете надолу за още.`, 3500); };
+$("selNone").onclick = () => { state.selected.clear(); state.lastClicked = null; syncSelection(); };
+
+$("addRoot").onclick = () => busy($("addRoot"), "Сканиране…", async () => {
+  const path = $("newRoot").value.trim(); if (!path) return;
+  const r = await api("/api/roots", { path });
+  $("newRoot").value = ""; toast(statsText(r.stats), 3500);
+  await loadRoots(); reload();
+});
+$("newRoot").addEventListener("keydown", (e) => { if (e.key === "Enter") $("addRoot").click(); });
+$("rescan").onclick = () => busy($("rescan"), "Сканиране…", async () => {
+  const r = await api("/api/scan", {}); toast(statsText(r.stats), 3500); await loadRoots(); reload();
+});
+
+$("vClose").onclick = closeViewer;
+$("vPrev").onclick = () => step(-1);
+$("vNext").onclick = () => step(1);
+$("vTag").addEventListener("keydown", (e) => {
+  if (e.key !== "Enter") return;
+  const tags = e.target.value.split(/[,;]/).map((s) => s.trim()).filter(Boolean);
+  if (tags.length) changeTags("add", [state.items[state.viewIndex].id], tags);
+  e.target.value = "";
+});
+document.addEventListener("keydown", (e) => {
+  if (state.viewIndex < 0) {
+    if (e.key === "Escape" && state.selected.size) $("selNone").click();
+    return;
+  }
+  const field = e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA";
+  const typing = field && (e.target.value || e.target.tagName === "TEXTAREA");
+  if (!field && e.code === "KeyD" && !e.ctrlKey && !e.metaKey && !e.altKey) { e.preventDefault(); return setDocMode(!docMode); }
+  if (e.code === "KeyR" && !field && !e.ctrlKey && !e.metaKey && !e.altKey) {
+    e.preventDefault(); return rotate([state.items[state.viewIndex].id], e.shiftKey ? -90 : 90);
+  }
+  if (!field && !e.ctrlKey && !e.metaKey) {
+    if (e.key === "+" || e.key === "=") { e.preventDefault(); return zoomBy(1.5); }
+    if (e.key === "-" || e.key === "_") { e.preventDefault(); return zoomBy(1 / 1.5); }
+    if (e.key === "0") { e.preventDefault(); return resetZoom(); }
+  }
+  if (e.key === "Escape") { if (field) e.target.blur(); else if (zoom.s > 1) resetZoom(); else closeViewer(); }
+  else if (!typing && e.key === "ArrowRight") step(1);
+  else if (!typing && e.key === "ArrowLeft") step(-1);
+});
+$("viewer").addEventListener("click", (e) => { if (e.target.classList.contains("stage")) closeViewer(); });
+
+// ---------------------------------------------------------------- zoom
+// 100% = the photo fits the screen; up to 10x. The full-size file is shown, so zooming stays sharp.
+const zoom = { s: 1, x: 0, y: 0 };
+const ZOOM_MAX = 10;
+function applyZoom() {
+  const img = $("vImg");
+  img.style.transform = zoom.s === 1 ? "" : `translate(${zoom.x}px, ${zoom.y}px) scale(${zoom.s})`;
+  img.classList.toggle("zoomed", zoom.s > 1);
+  $("vZoomLevel").textContent = `${Math.round(zoom.s * 100)}%`;
+  $("vZoomOut").disabled = zoom.s <= 1;
+  $("vZoomIn").disabled = zoom.s >= ZOOM_MAX;
+}
+function resetZoom() { Object.assign(zoom, { s: 1, x: 0, y: 0 }); applyZoom(); }
+// zoom keeping the point (px, py) on screen still; by default the centre of the stage
+function zoomBy(k, px, py) {
+  const img = $("vImg"), stage = img.parentElement.getBoundingClientRect();
+  const s = Math.min(ZOOM_MAX, Math.max(1, zoom.s * k));
+  if (s === 1) return resetZoom();
+  k = s / zoom.s;
+  // the photo sits in the middle of the stage, moved by (x, y); computed, not measured,
+  // because the rectangle is still animating during fast wheel turns
+  const cx = stage.left + stage.width / 2, cy = stage.top + stage.height / 2;
+  if (px === undefined) { px = cx; py = cy; }
+  zoom.x += (1 - k) * (px - (cx + zoom.x));
+  zoom.y += (1 - k) * (py - (cy + zoom.y));
+  zoom.s = s;
+  clampPan();
+  applyZoom();
+}
+// keep some of the photo on screen
+function clampPan() {
+  const img = $("vImg"), stage = img.parentElement;
+  const w = img.offsetWidth * zoom.s, h = img.offsetHeight * zoom.s;
+  const mx = Math.max(0, (w - stage.clientWidth) / 2 + 40), my = Math.max(0, (h - stage.clientHeight) / 2 + 40);
+  zoom.x = Math.min(mx, Math.max(-mx, zoom.x));
+  zoom.y = Math.min(my, Math.max(-my, zoom.y));
+}
+$("vZoomIn").onclick = () => zoomBy(1.5);
+$("vZoomOut").onclick = () => zoomBy(1 / 1.5);
+$("vZoomLevel").onclick = resetZoom;
+$("vImg").addEventListener("wheel", (e) => {
+  e.preventDefault();
+  zoomBy(Math.exp(-e.deltaY * (e.deltaMode ? 0.05 : 0.0015)), e.clientX, e.clientY);
+}, { passive: false });
+$("vImg").addEventListener("dblclick", (e) => { if (zoom.s > 1) resetZoom(); else zoomBy(2.5, e.clientX, e.clientY); });
+{
+  // drag to move a zoomed photo (mouse, pen or one finger)
+  let drag = null;
+  const img = $("vImg");
+  img.addEventListener("pointerdown", (e) => {
+    if (zoom.s === 1 || e.button !== 0) return;
+    drag = { id: e.pointerId, x: e.clientX - zoom.x, y: e.clientY - zoom.y };
+    img.setPointerCapture(e.pointerId); img.classList.add("dragging");
+  });
+  img.addEventListener("pointermove", (e) => {
+    if (!drag || e.pointerId !== drag.id) return;
+    zoom.x = e.clientX - drag.x; zoom.y = e.clientY - drag.y; clampPan(); applyZoom();
+  });
+  const end = () => { drag = null; img.classList.remove("dragging"); };
+  img.addEventListener("pointerup", end);
+  img.addEventListener("pointercancel", end);
+}
+
+// ---------------------------------------------------------------- automatic tagging
+let autoState = "", autoUpdated = 0, autoTimer, ocrInfo = { available: false };
+// update tags of the photos already on screen, keeping order and scroll position
+async function refreshLoaded() {
+  if (!state.items.length) return reload();
+  const p = query(); p.set("offset", 0); p.set("limit", Math.min(state.items.length, 1000));
+  const data = await api("/api/images?" + p);
+  const fresh = new Map(data.items.map((x) => [x.id, x]));
+  for (const it of state.items) {
+    const f = fresh.get(it.id);
+    if (f && JSON.stringify([f.tags, f.auto, f.info, f.confirmed]) !== JSON.stringify([it.tags, it.auto, it.info, it.confirmed])) {
+      Object.assign(it, { tags: f.tags, auto: f.auto, info: f.info, confirmed: f.confirmed }); refreshCard(it);
+    }
+  }
+  if (data.total !== state.total) { state.total = data.total; renderCount(); }
+  syncSelection();
+  if (state.viewIndex >= 0) renderViewerTags();
+}
+async function pollAuto() {
+  clearTimeout(autoTimer);
+  let next = 10000;
+  try {
+    const { status: st, ocr } = await api("/api/auto");
+    ocrInfo = ocr; $("bulkOcr").hidden = !ocr.available;
+    const busy = ["loading", "embedding", "ocr", "tagging"].includes(st.state);
+    const b = $("autoStatus");
+    b.classList.toggle("busy", busy); b.classList.toggle("err", st.state === "error");
+    b.textContent = st.state === "embedding" && st.total ? `Разпознаване ${st.done}/${st.total}`
+      : st.state === "ocr" && st.total ? `Четене на текст ${st.done}/${st.total}`
+      : st.state === "loading" ? "Зареждане на модела…" : st.state === "tagging" ? "Поставяне на тагове…"
+      : st.state === "error" ? "Грешка в тагването" : st.state === "off" || st.state === "disabled" ? "Автоматично тагване: изкл." : "Автоматично тагване ✓";
+    b.title = st.message || "";
+    $("setStatus").textContent = st.message || "";
+    if (autoState && ["ready", "disabled"].includes(st.state) && st.updated !== autoUpdated) {
+      await loadTags(); await refreshLoaded();
+      if (state.viewIndex >= 0) renderViewerText();
+      if ($("settings").open) { renderRules(await api("/api/rules")); ocrEstimate(); }
+    }
+    autoState = st.state; autoUpdated = st.updated;
+    if (busy) next = 1500;
+  } catch (e) { /* server restarting */ }
+  autoTimer = setTimeout(pollAuto, next);
+}
+const SETTING_KEYS = ["auto_enabled", "learn_enabled", "folder_enabled", "vocab_threshold", "learn_similarity", "max_auto_tags",
+  "ocr_enabled", "ocr_scope", "ocr_tags", "text_learn_enabled", "text_learn_confidence", "texts_dir"];
+let settingsTab = "general";
+function showTab(name) {
+  settingsTab = name;
+  document.querySelectorAll("#settings [role=tab]").forEach((b) => b.setAttribute("aria-selected", b.dataset.tab === name));
+  document.querySelectorAll("#settings [data-panel]").forEach((p) => { p.hidden = p.dataset.panel !== name; });
+}
+document.querySelectorAll("#settings [role=tab]").forEach((b) => { b.onclick = () => showTab(b.dataset.tab); });
+async function openSettings(tab) {
+  const { settings, ocr } = await api("/api/auto");
+  ocrInfo = ocr;
+  for (const k of SETTING_KEYS) {
+    const e = $("s_" + k);
+    if (e.type === "checkbox") e.checked = settings[k] === "1";
+    else if (e.tagName === "SELECT") { if (![...e.options].some((o) => o.value === settings[k])) e.append(el("option", { value: settings[k], textContent: settings[k] })); e.value = settings[k]; }
+    else e.value = settings[k];
+  }
+  const missing = $("ocrMissing");
+  missing.hidden = ocr.available;
+  if (!ocr.available) {
+    const cmd = (ocr.message.match(/sudo .+$/) || [""])[0];
+    missing.replaceChildren(ocr.message.replace(cmd, "").trim(), " ", cmd ? el("code", { textContent: cmd }) : "", " След това рестартирайте галерията.");
+  }
+  $("s_ocr_enabled").disabled = !ocr.available;
+  $("textsInfo").textContent = `Сега: ${ocr.texts_dir}, текстове от файлове: ${ocr.files}.`;
+  renderVocab(await api("/api/vocab"));
+  renderRules(await api("/api/rules"));
+  syncOcrForm();
+  showTab(typeof tab === "string" ? tab : settingsTab);
+  $("settings").showModal();
+}
+function syncOcrForm() {
+  const on = $("s_ocr_enabled").checked;
+  $("ocrOpts").classList.toggle("dim", !on);
+  $("s_ocr_tags").disabled = $("s_ocr_scope").value === "all";
+  $("s_ocr_tags").closest(".grid2").querySelector("label[for=s_ocr_tags]").classList.toggle("dim", $("s_ocr_scope").value === "all");
+  ocrEstimate();
+}
+function plural(n, one, many) { return n === 1 ? `1 ${one}` : `${n} ${many}`; }
+function minutes(m) { return m < 1 ? "под минута" : m < 90 ? `около ${Math.round(m)} мин` : `около ${(m / 60).toFixed(1).replace(".", ",")} часа`; }
+let estTimer;
+function ocrEstimate() {
+  clearTimeout(estTimer);
+  estTimer = setTimeout(async () => {
+    const info = $("ocrInfo");
+    if (!ocrInfo.available) { info.hidden = true; return; }
+    info.hidden = false;
+    const p = new URLSearchParams({ ocr_scope: $("s_ocr_scope").value, ocr_tags: $("s_ocr_tags").value });
+    let e; try { e = await api("/api/ocr/estimate?" + p); } catch (err) { return; }
+    const readTxt = e.read ? `Разпознат е текстът на ${plural(e.read, "снимка", "снимки")}.` : "Още няма разпознат текст.";
+    let next;
+    if (!$("s_ocr_enabled").checked) next = "Автоматичното разпознаване е изключено.";
+    else if (!e.pending) next = "При тези настройки няма нови снимки за четене.";
+    else next = `При тези настройки ще се прочетат още ${plural(e.pending, "снимка", "снимки")}, ${minutes(e.minutes)}. Галерията може да се ползва през това време.`;
+    info.textContent = `${readTxt} ${next}`;
+  }, 250);
+}
+$("s_ocr_enabled").onchange = syncOcrForm;
+$("s_ocr_scope").onchange = syncOcrForm;
+$("s_ocr_tags").oninput = ocrEstimate;
+function renderVocab(list) {
+  const body = $("vocabBody"); body.replaceChildren();
+  for (const v of list) {
+    const prompt = el("input", { type: "text", value: v.prompt });
+    const on = el("input", { type: "checkbox", checked: v.enabled, title: "Включено" });
+    const save = () => api("/api/vocab", { tag: v.tag, prompt: prompt.value, enabled: on.checked }).catch((e) => toast(e.message));
+    prompt.onchange = save; on.onchange = save;
+    const del = el("button", { className: "del", textContent: "×", title: "Изтрий от речника" });
+    del.onclick = async () => renderVocab((await api("/api/vocab/remove", { tag: v.tag })).vocab);
+    body.append(el("tr", {}, el("td", {}, v.tag), el("td", {}, prompt), el("td", {}, on), el("td", {}, del)));
+  }
+}
+function renderRules(list) {
+  const body = $("rulesBody"); body.replaceChildren();
+  if (!list.length) body.append(el("tr", {}, el("td", { className: "none", textContent: "Още няма правила. Пример: думи „ЕВН, електроенергия“ → таг „ток“." })));
+  for (const r of list) {
+    const words = el("input", { type: "text", value: r.words, title: "Думи в текста, със запетая" });
+    const tag = el("input", { type: "text", value: r.tag, title: "Таг" });
+    tag.setAttribute("list", "tagList");
+    const save = async () => {
+      try { renderRules((await api("/api/rules", { id: r.id, words: words.value, tag: tag.value })).rules); pollAuto(); }
+      catch (e) { toast(e.message); words.value = r.words; tag.value = r.tag; }
+    };
+    words.onchange = save; tag.onchange = save;
+    const n = el("a", { textContent: plural(r.count, "снимка", "снимки"), title: "В колко снимки текстът съдържа думите. Клик показва снимките с тага." });
+    n.onclick = () => { $("settings").close(); $("q").value = r.tag.includes(" ") ? `"${r.tag}"` : r.tag; reload(); };
+    const del = el("button", { className: "del", textContent: "×", title: "Изтрий правилото" });
+    del.onclick = async () => { renderRules((await api("/api/rules/remove", { id: r.id })).rules); pollAuto(); };
+    body.append(el("tr", {}, el("td", { style: "width:55%" }, words), el("td", { className: "arrow" }, "→"), el("td", {}, tag),
+      el("td", { className: "n" }, r.count ? n : el("span", { textContent: "0 снимки" })), el("td", {}, del)));
+  }
+}
+$("rAdd").onclick = async () => {
+  const words = $("rWords").value.trim(), tag = $("rTag").value.trim();
+  if (!words) return $("rWords").focus();
+  if (!tag) return $("rTag").focus();
+  try {
+    renderRules((await api("/api/rules", { words, tag })).rules);
+    $("rWords").value = ""; $("rTag").value = ""; $("rWords").focus(); pollAuto();
+  } catch (e) { toast(e.message); }
+};
+$("rWords").addEventListener("keydown", (e) => { if (e.key === "Enter") $("rTag").focus(); });
+$("rTag").addEventListener("keydown", (e) => { if (e.key === "Enter") $("rAdd").click(); });
+$("autoStatus").onclick = openSettings;
+$("setClose").onclick = () => $("settings").close();
+$("vAdd").onclick = async () => {
+  const tag = $("vNewTag").value.trim(); if (!tag) return $("vNewTag").focus();
+  try {
+    renderVocab((await api("/api/vocab", { tag, prompt: $("vNewPrompt").value })).vocab);
+    $("vNewTag").value = ""; $("vNewPrompt").value = ""; pollAuto();
+  } catch (e) { toast(e.message); }
+};
+$("vNewPrompt").addEventListener("keydown", (e) => { if (e.key === "Enter") $("vAdd").click(); });
+$("setSave").onclick = async () => {
+  const body = {};
+  for (const k of SETTING_KEYS) { const e = $("s_" + k); body[k] = e.type === "checkbox" ? (e.checked ? "1" : "0") : e.value; }
+  await api("/api/settings", body); $("settings").close(); toast("Запазено. Таговете се преизчисляват…"); pollAuto();
+};
+$("setRun").onclick = async () => { await api("/api/auto/run", {}); $("settings").close(); pollAuto(); };
+
+new IntersectionObserver((es) => { if (es[0].isIntersecting) loadMore(); }, { rootMargin: "600px" }).observe($("sentinel"));
+
+(async () => { await loadRoots(); await loadTags(); await reload(); $("q").focus(); pollAuto(); })();
+</script>
+</body>
+</html>
